@@ -1,0 +1,143 @@
+// Dropbox-like Service Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String   @id 
+  email                    String   @unique
+  firstName                String
+  lastName                 String
+  avatar                   String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  // Relations
+  files                    File[]
+  folders                  Folder[]
+  ownedGroups              UserGroup[] @relation("GroupOwner")
+  groupMemberships         UserGroupMember[]
+  bills                    UserBill[]
+  price                    UserPlanPrice[]
+
+  @@map("users")
+}
+
+model File {
+  id           String    @id 
+  name         String
+  extension    String
+  size         BigInt
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  ownerId      String
+  folderId     String? // null indicates root directory
+
+  // Relations
+  owner        User        @relation(fields: [ownerId], references: [id])
+  folder       Folder?     @relation(fields: [folderId], references: [id])
+  shares       FileSharing[]
+
+  @@unique([ownerId, name, folderId, deletedAt])
+  @@map("files")
+}
+
+model Folder {
+  id          String    @id 
+  name        String
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  ownerId     String
+  parentId    String?
+
+  // Relations
+  owner       User      @relation(fields: [ownerId], references: [id])
+  parent      Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children    Folder[]  @relation("FolderHierarchy")
+  files       File[]
+
+  @@unique([ownerId, name, parentId, deletedAt])
+  @@map("folders")
+}
+
+model UserGroup {
+  id          String   @id 
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     String
+
+  // Relations
+  owner       User     @relation("GroupOwner", fields: [ownerId], references: [id])
+  members     UserGroupMember[]
+
+  @@map("user_groups")
+}
+
+model UserGroupMember {
+  id        String   @id 
+  createdAt DateTime @default(now())
+  userId    String
+  groupId   String
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  group     UserGroup @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@map("user_group_members")
+}
+
+model FileSharing {
+  id          String          @id 
+  fileId      String
+  entityId    String
+  entityType  String
+  permission  SharePermission @default(VIEW)
+  createdAt   DateTime        @default(now())
+  
+  // Relations
+  file        File @relation(fields: [fileId], references: [id])
+  
+  @@map("file_sharing")
+}
+
+enum SharePermission {
+  VIEW
+  EDIT
+  DOWNLOAD
+}
+
+
+model UserPlanPrice {
+  id         String   @id 
+  userId     String
+  pricePerByteSec      Float
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  
+  @@map("user_plan_price")
+
+}
+model UserBill {
+  id         String   @id 
+  userId     String
+  amount     Float
+  year       Int
+  month      Int
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@map("user_bill")
+}

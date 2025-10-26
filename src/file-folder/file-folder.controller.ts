@@ -48,7 +48,7 @@ export class FileFolderController {
   }
 
   @Get('/v1/folders')
-  getUserFolders(@Query('parentId') parentId: string, @Req() req: any) {
+  listFolders(@Query('parentId') parentId: string, @Req() req: any) {
     return this.folderService.listFolders(req.user.userId, parentId);
   }
 
